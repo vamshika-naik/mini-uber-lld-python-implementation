@@ -45,4 +45,4 @@ Trips follow a strict unidirectional state sequence[cite: 1, 2]:
 2. Open your terminal in the project directory.
 3. Run the script:
    ```bash
-   python3 ride.py
+   python3 ride_sharing.py
