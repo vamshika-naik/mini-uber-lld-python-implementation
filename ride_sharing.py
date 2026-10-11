@@ -88,7 +88,7 @@ class Trip:
             TripStatus.CANCELLED: []
         }
         if new_status not in valid_transitions.get(self.status, []):
-            raise Exception(
+            raise InvalidStateTransitionError(
                 f"Invalid transition from {self.status} to {new_status}")
         self.status = new_status
 
@@ -105,7 +105,7 @@ class ClosestDriverStrategy(DriverMatchingStrategy):
     def match(self, pickup: Location, drivers: list[Driver]) -> Driver:
         available = [d for d in drivers if d.status == DriverStatus.AVAILABLE]
         if not available:
-            raise Exception("No drivers available!")
+            raise NoDriverAvailableError("No drivers available!")
         return min(available, key=lambda d: d.location.distance_to(pickup))
 
 
@@ -181,21 +181,51 @@ class RideServiceManager:
 if __name__ == "__main__":
     app = RideServiceManager()
 
+    # Rider Registration
     app.register_rider(Rider("R1", "Alice", "12345", 4.9))
-    car = Vehicle("KA01AB1234", "Sedan", 4, 1.2)
+    app.register_rider(Rider("R2", "Charlie", "222-222", 4.8))
+
+    # Driver Registration
+    car1 = Vehicle("KA01AB1234", "Sedan", 4, 1.2)
     app.register_driver(
-        Driver("D1", "Bob", car, Location(1.0, 1.0), DriverStatus.AVAILABLE))
+        Driver("D1", "Bob", car1, Location(1.0, 1.0), DriverStatus.AVAILABLE))
+
+    car2 = Vehicle("KA02CD5678", "SUV", 6, 1.5)
+    app.register_driver(
+        Driver("D2", "David", car2, Location(5.0, 5.0), DriverStatus.AVAILABLE))
 
     pickup_loc = Location(0.0, 0.0)
     drop_loc = Location(3.0, 4.0)
 
+    print(f"Starting Ride 1 ")
     trip = app.request_ride("T1", "R1", pickup_loc, drop_loc)
-    print(f"Ride Requested! Status: {trip.status.value}")
+    print(
+        f"Ride Requested! Rider: {trip.rider.name}, Status: {trip.status.value}")
 
     app.accept_trip("T1")
     print(
         f"Ride Booked! Driver: {trip.driver.name}, Fare: ${trip.fare}, Status: {trip.status.value}")
 
+    print(f" ")
+    print(f"Starting Ride 2 ")
+    try:
+        trip1 = app.request_ride("T2", "R2", pickup_loc, drop_loc)
+        print(
+            f"Ride Requested! Rider: {trip1.rider.name} Status: {trip1.status.value}")
+        app.accept_trip("T2")
+        print(
+            f"Ride Booked! Driver: {trip1.driver.name}, Fare: ${trip1.fare}, Status: {trip1.status.value}")
+
+        trip1.update_status(TripStatus.IN_PROGRESS)
+        print(f"Trip Status: {trip1.status.value}")
+        trip1.update_status(TripStatus.COMPLETED)
+        print(f"Trip Status: {trip1.status.value}")
+        trip1.driver.status = DriverStatus.AVAILABLE
+    except NoDriverAvailableError as e:
+        print(f"[Caught Expected Exception]: {e}")
+
+    print(f" ")
+    print(f"Continuing with Ride 1 ")
     trip.update_status(TripStatus.IN_PROGRESS)
     print(f"Trip Status: {trip.status.value}")
 
@@ -207,15 +237,16 @@ if __name__ == "__main__":
     app.rate_driver("T1", 4.0)
 
     print(f" ")
-    print(f"2nd ride")
+    print(f"Starting Ride 3")
 
-    trip1 = app.request_ride("T2", "R1", pickup_loc, drop_loc)
-    print(f"Ride Requested! Status: {trip1.status.value}")
-
-    app.accept_trip("T2")
+    trip2 = app.request_ride("T3", "R1", pickup_loc, drop_loc)
     print(
-        f"Ride Booked! Driver: {trip1.driver.name}, Fare: ${trip1.fare}, Status: {trip1.status.value}")
+        f"Ride Requested! Rider: {trip2.rider.name} Status: {trip2.status.value}")
 
-    app.cancel_trip("T2")
-    print(f"Rider Wallet Balance after penalty: ${trip.rider.wallet_balance}")
-    print(f"Driver Earnings after penalty: ${trip.driver.earnings}\n")
+    app.accept_trip("T3")
+    print(
+        f"Ride Booked! Driver: {trip2.driver.name}, Fare: ${trip2.fare}, Status: {trip2.status.value}")
+
+    app.cancel_trip("T3")
+    print(f"Rider Wallet Balance after penalty: ${trip2.rider.wallet_balance}")
+    print(f"Driver Earnings after penalty: ${trip2.driver.earnings}\n")
